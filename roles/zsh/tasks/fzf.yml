@@ -1,0 +1,44 @@
+- name: Check fzf installed
+  command: which fzf
+  changed_when: false
+  failed_when: false
+  check_mode: no
+  register: zsh_register_fzf_command
+
+- name: Removing
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/fzf_install
+
+- name: Download fzf install script
+  git:
+    repo: https://github.com/junegunn/fzf.git
+    version: "{{ zsh_fzf_version }}"
+    depth: 1
+    dest: "/tmp/fzf_install"
+    force: yes
+  become_user: "{{ zsh_user }}"
+  when: zsh_register_fzf_command.rc == 1
+
+- name: Pip install pexpect
+  pip:
+    name: pexpect
+  become: True
+
+- name: Copy fzf install to install.sh
+  copy: 
+    remote_src: True 
+    src: /tmp/fzf_install/install
+    dest: /tmp/fzf_install/install.sh
+  when: zsh_register_fzf_command.rc == 1
+
+- name: Install fzf 
+  expect:
+    command: bash /tmp/fzf_install/install.sh
+    responses:
+      "Do you want to enable fuzzy auto-completion": "y"
+      "Do you want to enable key bindings": "y"
+      "Do you want to update your shell configuration files": "y"
+  when: zsh_register_fzf_command.rc == 1
